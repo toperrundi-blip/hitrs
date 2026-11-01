@@ -1,0 +1,972 @@
+if getgenv().polythium and getgenv().polythium.unload then pcall(getgenv().polythium.unload) end
+
+local function getCoreGui()
+    if typeof(gethui) == "function" then
+        local ok, hui = pcall(gethui)
+        if ok and hui then return hui end
+    end
+    local lp = game:GetService("Players").LocalPlayer
+    if lp and lp:FindFirstChild("PlayerGui") then return lp.PlayerGui end
+    return game:GetService("CoreGui")
+end
+
+local function safeHttpGet(url)
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if ok and res and #res > 100 then return res end
+    return nil
+end
+
+local libSrc = safeHttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua")
+if not libSrc then
+    libSrc = safeHttpGet("https://cdn.jsdelivr.net/gh/deividcomsono/Obsidian@main/Library.lua")
+end
+if not libSrc then warn("[POLYTHIUM] Failed to download library.") return end
+
+local v9 = loadstring(libSrc)()
+if not v9 then warn("[POLYTHIUM] Failed to load library.") return end
+
+local v10 = loadstring(safeHttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/ThemeManager.lua") or "")() or {}
+local v11 = loadstring(safeHttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/SaveManager.lua") or "")() or {}
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local StarterPack = game:GetService("StarterPack")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
+local CoreGui = getCoreGui()
+
+local BALL_NAMES = {"fakeBaIlExpIoiter","fakeBall","MPS","TPS","CSF","ballPart","Ball56301","Ball90348","VEF","ROFI","SAML","VFA","VRF"}
+
+local function thumbURL(id, w, h)
+    return "rbxthumb://type=Asset&id=" .. tostring(id) .. "&w=" .. (w or 420) .. "&h=" .. (h or 420)
+end
+
+local Options, Toggles = v9.Options, v9.Toggles
+v9.ForceCheckbox = false
+v9.ShowToggleFrameInKeybinds = true
+
+-- ============================================================
+-- BLUE + PURPLE PALETTE
+-- ============================================================
+local BLUE       = Color3.fromRGB(88, 130, 255)
+local BLUE_LT    = Color3.fromRGB(130, 165, 255)
+local PURPLE     = Color3.fromRGB(168, 108, 255)
+local PURPLE_LT  = Color3.fromRGB(200, 150, 255)
+local BLACK      = Color3.fromRGB(10, 10, 18)
+local DARK       = Color3.fromRGB(18, 18, 30)
+local DARK2      = Color3.fromRGB(24, 22, 42)
+local DARK3      = Color3.fromRGB(12, 12, 24)
+local WHITE      = Color3.new(1, 1, 1)
+local GREY       = Color3.fromRGB(190, 195, 215)
+
+local function setTheme()
+    local T = v9.Theme or {}
+    T.Accent        = BLUE
+    T.Outline       = PURPLE
+    T.Text          = WHITE
+    T.SubText       = GREY
+    T.Title         = PURPLE
+    T.Background    = BLACK
+    T.Main          = DARK
+    T.Header        = DARK2
+    T.Section       = DARK
+    T.Groupbox      = DARK
+    T.Divider       = BLUE
+    T.Button        = DARK
+    T.ButtonHover   = DARK2
+    T.ButtonPress   = BLUE
+    T.ButtonText    = WHITE
+    T.ToggleColor   = BLUE
+    T.ToggleDisabled= Color3.fromRGB(60, 62, 82)
+    T.SliderColor   = BLUE
+    T.SliderRail    = Color3.fromRGB(40, 40, 58)
+    T.Keybind       = PURPLE
+    T.KeybindColor  = PURPLE
+    T.Highlight     = PURPLE
+    T.SearchBar     = DARK
+    T.SearchBarPlaceholder = Color3.fromRGB(150, 155, 175)
+    T.SearchBarBorder = PURPLE
+    T.SearchBarIcon = PURPLE
+    T.Tooltip       = DARK
+    T.TooltipBorder = PURPLE
+    T.Dropdown      = DARK
+    T.DropdownOption = DARK
+    T.DropdownOptionHover = DARK2
+    T.DropdownOptionSelected = BLUE
+    T.NotificationBackground = BLACK
+    T.NotificationTitle = PURPLE
+    T.NotificationContent = WHITE
+    T.NotificationBorder = PURPLE
+    T.NotificationIcon = PURPLE
+    T.NotificationAccent = BLUE
+    T.ScrollBar     = BLUE
+    T.ScrollBarHover= BLUE_LT
+    T.Tab           = DARK
+    T.TabActive     = BLUE
+    T.Line          = PURPLE
+    v9.Theme = T
+end
+setTheme()
+
+pcall(function()
+    if v10.SetLibrary then v10:SetLibrary(v9) end
+    if v10.RegisterTheme then v10:RegisterTheme("BluePurple", v9.Theme) end
+    if v10.SetTheme then v10:SetTheme("BluePurple") end
+end)
+
+local Win = v9:CreateWindow({
+    Title = "POLYTHIUM.cc", Footer = "By: @gcslover",
+    Icon = 0, NotifySide = "Right", ShowCustomCursor = true
+})
+setTheme()
+pcall(function() Win:Toggle() end)
+
+-- ============================================================
+-- REMOVE ANY TITLE LOGO (kill red lightning icon)
+-- ============================================================
+task.spawn(function()
+    task.wait(0.3)
+    local gui = v9.ScreenGui or v9.Gui
+    if not gui then
+        for _, g in pairs(CoreGui:GetChildren()) do
+            if g:IsA("ScreenGui") then
+                for _, d in pairs(g:GetDescendants()) do
+                    if d:IsA("TextLabel") and d.Text == "POLYTHIUM.cc" then gui = g break end
+                end
+            end
+            if gui then break end
+        end
+    end
+    if not gui then return end
+
+    -- Keep trying to scrub the logo for a few seconds in case the library re-adds it
+    for _ = 1, 10 do
+        for _, d in pairs(gui:GetDescendants()) do
+            pcall(function()
+                if d.Name == "PolythiumTitleLogo" then
+                    d:Destroy()
+                end
+                -- any image label sitting inside the header bar
+                if d:IsA("ImageLabel") then
+                    local parent = d.Parent
+                    if parent and parent:FindFirstChild("POLYTHIUM.cc") then
+                        d:Destroy()
+                    end
+                end
+            end)
+        end
+        task.wait(0.4)
+    end
+end)
+
+-- ============================================================
+-- STARFIELD
+-- ============================================================
+local function createStarField(parent)
+    if not parent or parent:GetAttribute("PolyStarfieldDone") then return end
+    parent:SetAttribute("PolyStarfieldDone", true)
+
+    local field = Instance.new("Frame")
+    field.Name = "PolyStarfield"
+    field.Size = UDim2.new(1, 0, 1, 0)
+    field.BackgroundTransparency = 1
+    field.ClipsDescendants = true
+    field.ZIndex = 0
+    field.Parent = parent
+
+    local starColors = {
+        Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(200, 220, 255),
+        Color3.fromRGB(180, 200, 255),
+        Color3.fromRGB(200, 170, 255),
+        Color3.fromRGB(140, 170, 255),
+    }
+
+    local starCount = 70
+    for i = 1, starCount do
+        local star = Instance.new("Frame")
+        local size = math.random(1, 2)
+        star.Size = UDim2.fromOffset(size, size)
+        star.Position = UDim2.new(math.random(), 0, math.random(), 0)
+        star.BackgroundColor3 = starColors[math.random(1, #starColors)]
+        star.BackgroundTransparency = 0.15 + math.random() * 0.55
+        star.BorderSizePixel = 0
+        star.ZIndex = 0
+        star.Parent = field
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = star
+
+        task.spawn(function()
+            while star.Parent do
+                local tween = game:GetService("TweenService"):Create(
+                    star,
+                    TweenInfo.new(0.8 + math.random() * 1.6, Enum.EasingStyle.Sine),
+                    { BackgroundTransparency = 0.15 + math.random() * 0.65 }
+                )
+                tween:Play()
+                tween.Completed:Wait()
+            end
+        end)
+    end
+
+    for i = 1, 8 do
+        local big = Instance.new("Frame")
+        big.Size = UDim2.fromOffset(3, 3)
+        big.Position = UDim2.new(math.random(), 0, math.random(), 0)
+        big.BackgroundColor3 = i % 2 == 0 and PURPLE_LT or BLUE_LT
+        big.BackgroundTransparency = 0.2
+        big.BorderSizePixel = 0
+        big.ZIndex = 0
+        big.Parent = field
+
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(1, 0)
+        c.Parent = big
+
+        local glow = Instance.new("Frame")
+        glow.Size = UDim2.fromOffset(11, 11)
+        glow.Position = UDim2.fromOffset(-4, -4)
+        glow.BackgroundColor3 = i % 2 == 0 and PURPLE or BLUE
+        glow.BackgroundTransparency = 0.8
+        glow.BorderSizePixel = 0
+        glow.ZIndex = -1
+        glow.Parent = big
+        local gc = Instance.new("UICorner")
+        gc.CornerRadius = UDim.new(1, 0)
+        gc.Parent = big
+
+        task.spawn(function()
+            while big.Parent do
+                local tw = game:GetService("TweenService"):Create(
+                    big,
+                    TweenInfo.new(1.2 + math.random() * 1.5, Enum.EasingStyle.Sine),
+                    { BackgroundTransparency = 0.35 + math.random() * 0.4 }
+                )
+                local tw2 = game:GetService("TweenService"):Create(
+                    glow,
+                    TweenInfo.new(1.2 + math.random() * 1.5, Enum.EasingStyle.Sine),
+                    { BackgroundTransparency = 0.7 + math.random() * 0.25 }
+                )
+                tw:Play()
+                tw2:Play()
+                tw.Completed:Wait()
+            end
+        end)
+    end
+
+    return field
+end
+
+local function injectStarfield(gui)
+    if not gui then return end
+    local biggest, biggestArea = nil, 0
+    for _, d in pairs(gui:GetDescendants()) do
+        if d:IsA("Frame") and d.BackgroundTransparency < 0.6 then
+            local a = d.AbsoluteSize.X * d.AbsoluteSize.Y
+            if a > biggestArea then
+                biggestArea = a
+                biggest = d
+            end
+        end
+    end
+    if biggest and not biggest:GetAttribute("PolyStarfieldDone") then
+        createStarField(biggest)
+    end
+end
+
+-- ============================================================
+-- RECOLOR
+-- ============================================================
+local function findGui()
+    if v9.ScreenGui then return v9.ScreenGui end
+    if v9.Gui then return v9.Gui end
+    for _, g in pairs(CoreGui:GetChildren()) do
+        if g:IsA("ScreenGui") then
+            for _, d in pairs(g:GetDescendants()) do
+                if d:IsA("TextLabel") and d.Text == "POLYTHIUM.cc" then return g end
+            end
+        end
+    end
+end
+
+local function isAccentPurpleBlue(c)
+    local h, s, v = Color3.toHSV(c)
+    return h >= 0.55 and h <= 0.88 and s > 0.35 and v > 0.4
+end
+
+local function isRed(c)
+    local h, s, v = Color3.toHSV(c)
+    return (h < 0.05 or h > 0.95) and s > 0.4 and v > 0.4
+end
+
+local function isYellow(c)
+    local h, s, v = Color3.toHSV(c)
+    return h > 0.08 and h < 0.20 and s > 0.4 and v > 0.5
+end
+
+local function recolor()
+    local gui = findGui(); if not gui then return end
+    for _, o in ipairs(gui:GetDescendants()) do
+        pcall(function()
+            local n = o.Name
+            if n == "PolythiumTitleLogo" or n == "PolyStarfield" then return end
+
+            if o:IsA("Frame") or o:IsA("TextButton") or o:IsA("ImageButton") then
+                local bg = o.BackgroundColor3
+                local small = o.Size.X.Offset <= 26 and o.Size.Y.Offset <= 26
+
+                if isAccentPurpleBlue(bg) or isRed(bg) then
+                    o.BackgroundColor3 = small and PURPLE or BLUE
+                elseif isYellow(bg) then
+                    o.BackgroundColor3 = PURPLE
+                end
+
+                if o.Parent and o.Parent:IsA("Frame") then
+                    local pbg = o.Parent.BackgroundColor3
+                    local parentRed = (pbg.R > 0.6 and pbg.G < 0.5 and pbg.B < 0.5)
+                    local parentBlue = (pbg.B > 0.6 and pbg.R < 0.6)
+                    local isWhite = bg.R > 0.9 and bg.G > 0.9 and bg.B > 0.9
+                    if (parentRed or parentBlue) and isWhite and small then
+                        o.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                    end
+                end
+            end
+
+            if o:IsA("ImageLabel") and (isAccentPurpleBlue(o.ImageColor3) or isRed(o.ImageColor3)) then
+                o.ImageColor3 = PURPLE
+            end
+            if o:IsA("UIStroke") and (isAccentPurpleBlue(o.Color) or isRed(o.Color)) then
+                o.Color = PURPLE
+            end
+            if (o:IsA("TextLabel") or o:IsA("TextButton")) then
+                if isAccentPurpleBlue(o.TextColor3) or isRed(o.TextColor3) then
+                    o.TextColor3 = PURPLE
+                elseif isYellow(o.TextColor3) then
+                    o.TextColor3 = PURPLE_LT
+                end
+            end
+        end)
+    end
+    injectStarfield(gui)
+end
+
+-- ============================================================
+-- BALL / TRAJECTORY / AUTOCATCH / AUTOSAVE
+-- ============================================================
+local LP = Players.LocalPlayer
+
+local CFG = {
+    TrajColor = PURPLE, LandingColor = BLUE_LT,
+    PredictTime = 1.6, SimDt = 1/60, MaxBounces = 4,
+    Restitution = 0.55, GroundFriction = 0.78, AirDrag = 0.003, RollFriction = 0.4,
+    NumMarkers = 24, MarkerSize = 0.45, LandingSize = 2.5,
+    Adapt = 0.5,            -- скорость самокалибровки предсказания (0.1..1)
+
+    CatchReach = 40, CatchLookahead = 0.4, CatchMinSpeed = 20,
+    HighThreshold = 1.5, AbilityCooldown = 0.6, CatchWindow = 0.35, ReachTouch = true,
+
+    ShotMinSpeed = 45, ShotMinJump = 25, ShotMaxTime = 3,
+    SavePredict = 2.5, SaveRadius = 90, SaveMaxHeight = 7, ReactionTime = 0.1, ShowTarget = true,
+}
+
+local function getBallsList()
+    local list = {}
+    local folder = workspace:FindFirstChild("Balls", true)
+    if folder then
+        for _, c in ipairs(folder:GetChildren()) do
+            if c:IsA("BasePart") then table.insert(list, c) end
+        end
+        return list
+    end
+    for _, c in ipairs(workspace:GetDescendants()) do
+        if c:IsA("BasePart") then
+            for _, n in ipairs(BALL_NAMES) do
+                if c.Name == n then table.insert(list, c) break end
+            end
+        end
+    end
+    return list
+end
+
+local ballCache, ballCacheT = {}, 0
+local function getBalls()
+    local now = os.clock()
+    if now - ballCacheT > 0.25 then ballCacheT, ballCache = now, getBallsList() end
+    return ballCache
+end
+
+local trajFolder
+local trajBalls = {}
+local conns = {}
+local track = {}   -- [ball] = {v, t, res}
+
+-- raycast: игнорируем мячи, всех игроков и свои маркеры
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+local rayT = 0
+local function refreshRayParams(force)
+    local now = os.clock()
+    if not force and now - rayT < 0.5 then return end
+    rayT = now
+    local ex = {}
+    if trajFolder then ex[#ex + 1] = trajFolder end
+    for _, b in ipairs(getBalls()) do ex[#ex + 1] = b end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then ex[#ex + 1] = plr.Character end
+    end
+    rayParams.FilterDescendantsInstances = ex
+end
+
+local function initFolder()
+    if not trajFolder or not trajFolder.Parent then
+        trajFolder = Instance.new("Folder")
+        trajFolder.Name = "POLYTHIUM_Trajectory"
+        trajFolder.Parent = workspace
+        refreshRayParams(true)
+    end
+end
+
+local function newPart(shape, size)
+    initFolder()
+    local p = Instance.new("Part")
+    p.Shape = shape p.Size = size
+    p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch = true, false, false, false
+    p.Material = Enum.Material.Neon
+    p.Transparency = 1
+    p.Parent = trajFolder
+    return p
+end
+
+-- ---------- Самокалибровка предсказания ----------
+-- Каждый кадр сравниваем реальное ускорение мяча с модельным (гравитация + сопротивление).
+-- Разницу (кручение, нестандартная гравитация, силы игры) запоминаем и добавляем в симуляцию,
+-- поэтому прогноз быстро подстраивается под реальную физику мяча.
+local function knownAccel(v)
+    return Vector3.new(0, -workspace.Gravity, 0) - v * (CFG.AirDrag * v.Magnitude)
+end
+
+local function updateTrack(ball)
+    local now = os.clock()
+    local v = ball.AssemblyLinearVelocity
+    local tr = track[ball]
+    if not tr then track[ball] = {v = v, t = now, res = Vector3.zero} return end
+    if (v - tr.v).Magnitude < 1e-3 then return end   -- физика ещё не обновилась
+
+    local lv, dt = tr.v, now - tr.t
+    tr.v, tr.t = v, now
+    if dt < 0.004 or dt > 0.25 or v.Magnitude < 1 then tr.res = Vector3.zero return end
+
+    local radius = math.max(ball.Size.X, ball.Size.Y, ball.Size.Z) / 2
+    if workspace:Raycast(ball.Position, Vector3.new(0, -(radius + 0.6), 0), rayParams) then
+        tr.res = Vector3.zero   -- мяч на земле: нормальная сила, не калибруем
+        return
+    end
+
+    local c = (v - lv) / dt - knownAccel(lv)
+    if c.Magnitude > 120 then tr.res = Vector3.zero return end   -- удар/столкновение
+    tr.res = tr.res:Lerp(c, CFG.Adapt)
+end
+
+local function simulate(ball, predictTime)
+    refreshRayParams()
+    local pos, vel = ball.Position, ball.AssemblyLinearVelocity
+    local points, times = { pos }, { 0 }
+    if vel.Magnitude < 0.5 then return points, times, pos end
+
+    local tr = track[ball]
+    local acc = Vector3.new(0, -workspace.Gravity, 0) + (tr and tr.res or Vector3.zero)
+    local radius = math.max(ball.Size.X, ball.Size.Y, ball.Size.Z) / 2
+    local dt = CFG.SimDt
+    local landing
+    local bounces, t = 0, 0
+
+    for _ = 1, math.floor((predictTime or CFG.PredictTime) / dt) do
+        local v = vel + acc * dt
+        v = v * math.max(0, 1 - CFG.AirDrag * v.Magnitude * dt)
+        local step = v * dt
+        local nextPos = pos + step
+        local hit
+        if step.Magnitude > 0 then
+            hit = workspace:Raycast(pos, step + step.Unit * radius, rayParams)
+        end
+        t += dt
+
+        if hit then
+            local n = hit.Normal.Unit
+            local vn = v:Dot(n)
+            if vn < 0 then
+                local vN = n * vn
+                local vT = v - vN
+                if -vn < 4 then
+                    v = vT * math.max(0, 1 - CFG.RollFriction * dt)   -- катится
+                else
+                    v = vT * CFG.GroundFriction - vN * CFG.Restitution -- отскок
+                    bounces += 1
+                    if n.Y > 0.7 and not landing then landing = hit.Position end
+                end
+            end
+            nextPos = hit.Position + n * radius
+            table.insert(points, nextPos) table.insert(times, t)
+            if v.Magnitude < 2.5 or bounces > CFG.MaxBounces then break end
+        else
+            table.insert(points, nextPos) table.insert(times, t)
+        end
+        pos, vel = nextPos, v
+    end
+    return points, times, landing or points[#points]
+end
+
+-- ---------- Отрисовка траектории ----------
+local function createSet()
+    local markers = {}
+    for i = 1, CFG.NumMarkers do
+        local m = newPart(Enum.PartType.Ball, Vector3.one * CFG.MarkerSize)
+        m.Color = CFG.TrajColor
+        markers[i] = m
+    end
+    local landing = newPart(Enum.PartType.Cylinder, Vector3.new(0.08, CFG.LandingSize, CFG.LandingSize))
+    landing.Color = CFG.LandingColor
+    return { markers = markers, landing = landing }
+end
+
+local function destroySet(set)
+    for _, m in ipairs(set.markers) do if m.Parent then m:Destroy() end end
+    if set.landing and set.landing.Parent then set.landing:Destroy() end
+end
+
+local targetMarker
+local function clearAll()
+    for _, set in pairs(trajBalls) do destroySet(set) end
+    trajBalls = {}
+    targetMarker = nil
+    if trajFolder then trajFolder:Destroy() trajFolder = nil end
+end
+
+local function rescan()
+    local active = {}
+    for _, b in ipairs(getBalls()) do active[b] = true end
+    for b in pairs(active) do if not trajBalls[b] then trajBalls[b] = createSet() end end
+    for b, set in pairs(trajBalls) do
+        if not b.Parent or not active[b] then destroySet(set) trajBalls[b] = nil end
+    end
+    for b in pairs(track) do if not b.Parent then track[b] = nil end end
+end
+
+local function drawTraj(ball, set)
+    local pts, _, landing = simulate(ball)
+    if #pts < 2 then
+        for _, m in ipairs(set.markers) do m.Transparency = 1 end
+        set.landing.Transparency = 1
+        return
+    end
+    local step = math.max(1, math.floor(#pts / CFG.NumMarkers))
+    for i = 1, CFG.NumMarkers do
+        local idx = (i - 1) * step + 1
+        local m = set.markers[i]
+        if pts[idx] then
+            local frac = i / CFG.NumMarkers
+            m.Position = pts[idx]
+            m.Transparency = 0.05 + 0.55 * frac
+            m.Color = CFG.TrajColor
+            m.Size = Vector3.one * CFG.MarkerSize * (1 - 0.4 * frac)
+        else
+            m.Transparency = 1
+        end
+    end
+    set.landing.CFrame = CFrame.new(landing + Vector3.new(0, 0.04, 0)) * CFrame.Angles(0, 0, math.rad(90))
+    set.landing.Color = CFG.LandingColor
+    set.landing.Transparency = 0.15
+end
+
+-- ---------- AutoCatch: только с экипированным тулом GK (R = верх, F = низ) ----------
+local VIM do
+    local ok, svc = pcall(function() return game:GetService("VirtualInputManager") end)
+    VIM = ok and svc or nil
+end
+local KEY_CODES = { R = 0x52, F = 0x46 }
+
+local function pressKey(name)
+    local kc = Enum.KeyCode[name]
+    if VIM then
+        pcall(function() VIM:SendKeyEvent(true, kc, false, game) end)
+        task.delay(0.06, function() pcall(function() VIM:SendKeyEvent(false, kc, false, game) end) end)
+    elseif typeof(keypress) == "function" then
+        pcall(keypress, KEY_CODES[name])
+        task.delay(0.06, function() pcall(keyrelease, KEY_CODES[name]) end)
+    end
+end
+
+-- GK считается экипированным, только если Tool "GK" лежит в персонаже (не в рюкзаке)
+local function getEquippedGK(char)
+    local tool = char and char:FindFirstChild("GK")
+    if tool and tool:IsA("Tool") then return tool end
+end
+
+local lastCatch, lastTouch = 0, 0
+local catchWindow = { untilT = 0, ball = nil }
+
+local function reachTouch(char, tool, ball)
+    if typeof(firetouchinterest) ~= "function" then return end
+    local handle = tool:FindFirstChild("Handle")
+    if handle and handle:IsA("BasePart") then
+        pcall(firetouchinterest, handle, ball, 0)
+        pcall(firetouchinterest, handle, ball, 1)
+    end
+    for _, part in ipairs(char:GetChildren()) do
+        if part:IsA("BasePart") then
+            pcall(firetouchinterest, part, ball, 0)
+            pcall(firetouchinterest, part, ball, 1)
+        end
+    end
+end
+
+local function autoCatch()
+    local char = LP.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local gk = getEquippedGK(char)
+    if not (hrp and gk) then catchWindow.untilT = 0 return end   -- без GK ничего не делаем
+
+    local now = tick()
+
+    -- окно ловли: пока оно открыто, "касаемся" мяча в пределах reach
+    if CFG.ReachTouch and now < catchWindow.untilT and catchWindow.ball and catchWindow.ball.Parent
+        and now - lastTouch > 0.03 then
+        local ball = catchWindow.ball
+        if (ball.Position - hrp.Position).Magnitude <= CFG.CatchReach * 1.25 then
+            lastTouch = now
+            reachTouch(char, gk, ball)
+        end
+    end
+
+    if now - lastCatch < CFG.AbilityCooldown then return end
+
+    local bestBall, bestT, bestY
+    for _, ball in ipairs(getBalls()) do
+        local vel = ball.AssemblyLinearVelocity
+        if vel.Magnitude >= CFG.CatchMinSpeed then
+            local toMe = hrp.Position - ball.Position
+            if toMe.Magnitude < 6 or vel.Unit:Dot(toMe.Unit) > 0.1 then
+                -- точка максимального сближения с персонажем в ближайшие CatchLookahead сек
+                local pts, times = simulate(ball, CFG.CatchLookahead + 0.05)
+                local minD, minI = math.huge, 1
+                for i, p in ipairs(pts) do
+                    if times[i] > CFG.CatchLookahead then break end
+                    local d = (p - hrp.Position).Magnitude
+                    if d < minD then minD, minI = d, i end
+                end
+                if minD <= CFG.CatchReach and (not bestT or times[minI] < bestT) then
+                    bestBall, bestT, bestY = ball, times[minI], pts[minI].Y
+                end
+            end
+        end
+    end
+
+    if bestBall then
+        lastCatch = now
+        local high = (bestY - hrp.Position.Y) > CFG.HighThreshold
+        pressKey(high and "R" or "F")
+        catchWindow.untilT = now + CFG.CatchWindow
+        catchWindow.ball = bestBall
+        if CFG.ReachTouch then reachTouch(char, gk, bestBall) end
+    end
+end
+
+-- ---------- AutoSave (только чужие удары) ----------
+local shots, hist, decided = {}, {}, {}
+local saveTarget, saveBall, saveMoving = nil, nil, false
+
+local function hideTarget() if targetMarker then targetMarker.Transparency = 1 end end
+
+local function nearestShooterIsMe(ball)
+    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return false end
+    local myD = (myHrp.Position - ball.Position).Magnitude
+    local otherD = math.huge
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LP and plr.Character then
+            local h = plr.Character:FindFirstChild("HumanoidRootPart")
+            if h then otherD = math.min(otherD, (h.Position - ball.Position).Magnitude) end
+        end
+    end
+    return myD <= otherD
+end
+
+local function detectShots()
+    local now = tick()
+    for _, ball in ipairs(getBalls()) do
+        local sp = ball.AssemblyLinearVelocity.Magnitude
+        local h = hist[ball]
+        if not h then h = {} hist[ball] = h end
+        table.insert(h, {now, sp})
+        while #h > 0 and now - h[1][1] > 0.12 do table.remove(h, 1) end
+
+        if sp >= CFG.ShotMinSpeed and #h >= 2 then
+            local minPrev = math.huge
+            for i = 1, #h - 1 do minPrev = math.min(minPrev, h[i][2]) end
+            local d = decided[ball]
+            if sp - minPrev >= CFG.ShotMinJump and (not d or now - d.t > 0.25) then
+                local mine = nearestShooterIsMe(ball)
+                decided[ball] = { t = now, mine = mine }
+                shots[ball] = (not mine) and { t0 = now } or nil
+            end
+        end
+
+        local sh = shots[ball]
+        if sh and (now - sh.t0 > CFG.ShotMaxTime or sp < CFG.ShotMinSpeed * 0.3) then shots[ball] = nil end
+    end
+    for b in pairs(hist) do
+        if not b.Parent then hist[b], shots[b], decided[b] = nil, nil, nil end
+    end
+end
+
+-- Самая ранняя точка траектории, куда успеваем добежать и достать по высоте.
+-- Если не успеваем никуда, бежим в точку, где отставание минимально.
+local function findIntercept(ball, hrp, hum)
+    local pts, times, landing = simulate(ball, CFG.SavePredict)
+    local speed = math.max(hum.WalkSpeed, 1)
+    local footY = hrp.Position.Y - 3
+    local fallback, fallbackLag = nil, math.huge
+    for i, p in ipairs(pts) do
+        if p.Y - footY <= CFG.SaveMaxHeight then
+            local flat = Vector3.new(p.X - hrp.Position.X, 0, p.Z - hrp.Position.Z).Magnitude
+            local lag = flat / speed + CFG.ReactionTime - times[i]
+            if lag <= 0 then return p end
+            if lag < fallbackLag then fallback, fallbackLag = p, lag end
+        end
+    end
+    return fallback or landing
+end
+
+local function stopRunning(hum, hrp)
+    if saveMoving then
+        saveMoving = false
+        if hum and hrp then pcall(function() hum:MoveTo(hrp.Position) end) end
+    end
+    saveTarget, saveBall = nil, nil
+end
+
+local function autoSave()
+    local char = LP.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not (hrp and hum) then return end
+
+    detectShots()
+
+    local best, bestT
+    for ball, sh in pairs(shots) do
+        if ball.Parent then
+            local toMe = hrp.Position - ball.Position
+            local vel = ball.AssemblyLinearVelocity
+            if toMe.Magnitude < 25 or (vel.Magnitude > 0 and vel.Unit:Dot(toMe.Unit) > 0.2) then
+                if not bestT or sh.t0 > bestT then best, bestT = ball, sh.t0 end
+            end
+        end
+    end
+    if not best then hideTarget() stopRunning(hum, hrp) return end
+
+    local target = findIntercept(best, hrp, hum)
+    if not target or (target - hrp.Position).Magnitude > CFG.SaveRadius then
+        hideTarget() stopRunning(hum, hrp) return
+    end
+
+    -- лёгкое сглаживание, чтобы цель не дёргалась между кадрами
+    if saveBall ~= best or not saveTarget then saveTarget, saveBall = target, best
+    else saveTarget = saveTarget:Lerp(target, 0.5) end
+
+    if CFG.ShowTarget then
+        if not targetMarker or not targetMarker.Parent then
+            targetMarker = newPart(Enum.PartType.Ball, Vector3.one * 2)
+            targetMarker.Color = Color3.fromRGB(255, 90, 90)
+        end
+        targetMarker.Position = saveTarget
+        targetMarker.Transparency = 0.2
+    else
+        hideTarget()
+    end
+
+    saveMoving = true
+    hum:MoveTo(Vector3.new(saveTarget.X, hrp.Position.Y, saveTarget.Z))
+end
+
+-- ============================================================
+-- TABS / UI
+-- ============================================================
+local t1 = {}
+t1.Main   = Win:AddTab("Main", "volleyball")
+t1.Config = Win:AddTab("Settings", "settings")
+
+-- Trajectory (только показывает, персонаж никуда не идёт)
+local tg = t1.Main:AddLeftGroupbox("Trajectory")
+local trajToggle = tg:AddToggle("TrajectoryToggle", {
+    Text = "Trajectory", Default = false,
+    Callback = function(s) if not s then clearAll() else initFolder() rescan() end end,
+})
+trajToggle:AddKeyPicker("TrajectoryKeybind", {Default = "X", Text = "Trajectory", SyncToggleState = true, Mode = "Toggle"})
+trajToggle:AddColorPicker("TrajectoryColor", {Default = PURPLE, Title = "Trajectory Color",
+    Callback = function(c) CFG.TrajColor = c end})
+trajToggle:AddColorPicker("LandingColor", {Default = BLUE_LT, Title = "Landing Color",
+    Callback = function(c) CFG.LandingColor = c end})
+tg:AddSlider("PredictTime", {Text = "Predict time (sec)", Default = 1.6, Min = 0.4, Max = 4, Rounding = 1,
+    Callback = function(v) CFG.PredictTime = v end})
+tg:AddSlider("Adapt", {Text = "Prediction adapt speed", Default = 0.5, Min = 0.1, Max = 1, Rounding = 2,
+    Tooltip = "Как быстро предсказание подстраивается под реальную физику мяча",
+    Callback = function(v) CFG.Adapt = v end})
+
+-- AutoCatch
+local cg = t1.Main:AddLeftGroupbox("Auto Catch (GK)")
+local catchToggle = cg:AddToggle("AutoCatchToggle", {Text = "Auto Catch", Default = false})
+catchToggle:AddKeyPicker("AutoCatchKeybind", {Default = "C", Text = "Auto Catch", SyncToggleState = true, Mode = "Toggle"})
+cg:AddLabel("Работает только с экипированным GK. R = поверху, F = понизу", true)
+cg:AddToggle("ReachTouchToggle", {Text = "Catch reach (firetouch)", Default = true,
+    Callback = function(s) CFG.ReachTouch = s end})
+cg:AddSlider("CatchReach", {Text = "Catch reach (studs)", Default = 40, Min = 5, Max = 200, Rounding = 0,
+    Callback = function(v) CFG.CatchReach = v end})
+cg:AddSlider("CatchLookahead", {Text = "Lookahead (sec)", Default = 0.4, Min = 0.05, Max = 1.5, Rounding = 2,
+    Callback = function(v) CFG.CatchLookahead = v end})
+cg:AddSlider("CatchWindow", {Text = "Catch window (sec)", Default = 0.35, Min = 0.1, Max = 1.5, Rounding = 2,
+    Callback = function(v) CFG.CatchWindow = v end})
+cg:AddSlider("HighThreshold", {Text = "High (R) above HRP by", Default = 1.5, Min = -2, Max = 6, Rounding = 1,
+    Callback = function(v) CFG.HighThreshold = v end})
+cg:AddSlider("CatchMinSpeed", {Text = "Min ball speed", Default = 20, Min = 0, Max = 100, Rounding = 0,
+    Callback = function(v) CFG.CatchMinSpeed = v end})
+cg:AddSlider("AbilityCooldown", {Text = "Ability cooldown (sec)", Default = 0.6, Min = 0.1, Max = 3, Rounding = 2,
+    Callback = function(v) CFG.AbilityCooldown = v end})
+
+-- AutoSave
+local sg = t1.Main:AddRightGroupbox("Auto Save (чужие удары)")
+local saveToggle = sg:AddToggle("AutoSaveToggle", {Text = "Auto Save (run to intercept)", Default = false,
+    Callback = function(s)
+        if not s then
+            hideTarget()
+            local c = LP.Character
+            stopRunning(c and c:FindFirstChildOfClass("Humanoid"), c and c:FindFirstChild("HumanoidRootPart"))
+        end
+    end})
+saveToggle:AddKeyPicker("AutoSaveKeybind", {Default = "G", Text = "Auto Save", SyncToggleState = true, Mode = "Toggle"})
+sg:AddToggle("ShowTargetToggle", {Text = "Show target marker", Default = true,
+    Callback = function(s) CFG.ShowTarget = s if not s then hideTarget() end end})
+sg:AddSlider("ShotMinSpeed", {Text = "Shot min speed", Default = 45, Min = 10, Max = 150, Rounding = 0,
+    Callback = function(v) CFG.ShotMinSpeed = v end})
+sg:AddSlider("ShotMinJump", {Text = "Shot min speed jump", Default = 25, Min = 5, Max = 100, Rounding = 0,
+    Callback = function(v) CFG.ShotMinJump = v end})
+sg:AddSlider("SaveRadius", {Text = "Max run distance", Default = 90, Min = 20, Max = 200, Rounding = 0,
+    Callback = function(v) CFG.SaveRadius = v end})
+sg:AddSlider("SaveMaxHeight", {Text = "Max reach height", Default = 7, Min = 3, Max = 15, Rounding = 0,
+    Callback = function(v) CFG.SaveMaxHeight = v end})
+sg:AddSlider("ReactionTime", {Text = "Reaction time (sec)", Default = 0.1, Min = 0, Max = 0.6, Rounding = 2,
+    Callback = function(v) CFG.ReactionTime = v end})
+sg:AddSlider("SavePredict", {Text = "Predict time (sec)", Default = 2.5, Min = 0.5, Max = 5, Rounding = 1,
+    Callback = function(v) CFG.SavePredict = v end})
+
+-- Settings: Menu
+local cfg = t1.Config:AddLeftGroupbox("Menu")
+cfg:AddToggle("KeybindMenuOpen", {Default = v9.KeybindFrame.Visible, Text = "Open Keybind Menu",
+    Callback = function(s) v9.KeybindFrame.Visible = s end})
+cfg:AddToggle("ShowCustomCursor", {Text = "Custom Cursor", Default = true, Callback = function(s) v9.ShowCustomCursor = s end})
+cfg:AddDropdown("DPIDropdown", {Values = {"50%","75%","100%","125%","150%","175%","200%"}, Default = "100%", Text = "DPI Scale",
+    Callback = function(v) v9:SetDPIScale(tonumber(v:gsub("%%", ""))) end})
+cfg:AddDivider()
+cfg:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {Default = "RightShift", NoUI = true, Text = "Menu keybind"})
+v9.ToggleKeybind = Options.MenuKeybind
+
+-- Settings: Notifications
+local NotifyConfig = {enabled = true, ready = false, time = 2,
+    ignore = {KeybindMenuOpen = true, ShowCustomCursor = true, NotifyOnToggle = true, ShowTargetToggle = true, ReachTouchToggle = true}}
+local ng = t1.Config:AddRightGroupbox("Notifications")
+ng:AddToggle("NotifyOnToggle", {Text = "Enable notifications", Default = true,
+    Callback = function(s) NotifyConfig.enabled = s end})
+ng:AddDropdown("NotificationSide", {Values = {"Left", "Right"}, Default = "Right", Text = "Notification side",
+    Callback = function(s) pcall(function() v9:SetNotifySide(s) end) end})
+ng:AddSlider("NotifyDuration", {Text = "Duration (sec)", Default = 2, Min = 1, Max = 10, Rounding = 1,
+    Callback = function(v) NotifyConfig.time = v end})
+ng:AddButton("NotifyTestButton", {Text = "Test notification", DoubleClick = false,
+    Func = function() pcall(function() v9:Notify({Title = "Test", Description = "Notifications work", Time = NotifyConfig.time}) end) end})
+
+for name, toggle in pairs(Toggles) do
+    if not NotifyConfig.ignore[name] then
+        local lastN = 0
+        toggle:OnChanged(function()
+            if not NotifyConfig.ready or not NotifyConfig.enabled then return end
+            if tick() - lastN < 0.08 then return end
+            lastN = tick()
+            pcall(function()
+                v9:Notify({Title = toggle.Text, Description = toggle.Value and "ENABLED" or "DISABLED", Time = NotifyConfig.time})
+            end)
+        end)
+    end
+end
+task.delay(2.5, function() NotifyConfig.ready = true end)
+
+-- Settings: configs
+pcall(function()
+    if v11.SetLibrary then v11:SetLibrary(v9) end
+    if v11.IgnoreThemeSettings then v11:IgnoreThemeSettings() end
+    if v11.SetIgnoreIndexes then v11:SetIgnoreIndexes({"MenuKeybind"}) end
+    if v11.SetFolder then v11:SetFolder("POLYTHIUM-trajcatch") end
+    if v11.BuildConfigSection then v11:BuildConfigSection(t1.Config) end
+    if v11.LoadAutoloadConfig then v11:LoadAutoloadConfig() end
+end)
+
+-- ============================================================
+-- STYLE
+-- ============================================================
+setTheme()
+recolor()
+for _, d in ipairs({0.1, 0.5, 1, 2, 3}) do task.delay(d, recolor) end
+local recolorAlive = true
+task.spawn(function() while recolorAlive and task.wait(0.4) do recolor() end end)
+
+-- ============================================================
+-- MAIN LOOP
+-- ============================================================
+local lastRescan = 0
+table.insert(conns, RunService.RenderStepped:Connect(function()
+    local trajOn = Toggles.TrajectoryToggle.Value
+    local saveOn = Toggles.AutoSaveToggle.Value
+    local catchOn = Toggles.AutoCatchToggle.Value
+    if not (trajOn or saveOn or catchOn) then return end
+
+    refreshRayParams()
+    for _, ball in ipairs(getBalls()) do
+        if ball.Parent then updateTrack(ball) end
+    end
+
+    if trajOn then
+        initFolder()
+        if tick() - lastRescan > 1 then lastRescan = tick() rescan() end
+        for ball, set in pairs(trajBalls) do
+            if ball.Parent then pcall(drawTraj, ball, set)
+            else destroySet(set) trajBalls[ball] = nil end
+        end
+    end
+    if saveOn then pcall(autoSave) end
+    if catchOn then pcall(autoCatch) end
+end))
+
+pcall(function()
+    v9:Notify({Title = "POLYTHIUM.cc loaded", Description = "X = Trajectory, C = Auto Catch, G = Auto Save", Time = 8})
+end)
+
+getgenv().polythium = {
+    loaded = true,
+    cfg = CFG,
+    unload = function()
+        recolorAlive = false
+        for _, c in ipairs(conns) do c:Disconnect() end
+        pcall(clearAll)
+        pcall(function() local hm = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid") if hm then hm:Move(Vector3.zero) end end)
+        pcall(function() v9:Unload() end)
+        getgenv().polythium = nil
+        print("[POLYTHIUM] Unloaded")
+    end,
+}
